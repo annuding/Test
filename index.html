@@ -369,6 +369,7 @@
     <div class="header h1">🚐 Camperreise</div>
     <div class="header-sub" id="header-sub">Wähle eine Ansicht</div>
   </div>
+  <span id="offline-pill" style="display:none;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);border-radius:99px;padding:4px 11px;font-size:12px;font-weight:600;white-space:nowrap">✈︎ Offline</span>
 </header>
 
 <main class="content">
@@ -978,43 +979,19 @@ function closeSheet() {
 })();
 
 /* =================================================================
-   SERVICE WORKER  (Blob-URL – best effort offline)
+   SERVICE WORKER
    ================================================================= */
 if ('serviceWorker' in navigator) {
-  const sw = `
-const C = 'camper-v2';
-const PRE = [
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(C).then(c => c.addAll(PRE).catch(()=>{})));
-  self.skipWaiting();
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks =>
-    Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
-});
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(res => {
-      if (res && res.ok) {
-        const cl = res.clone();
-        caches.open(C).then(c => c.put(e.request, cl));
-      }
-      return res;
-    }).catch(() => caches.match(e.request)))
-  );
-});
-`;
-  try {
-    const url = URL.createObjectURL(new Blob([sw], { type: 'application/javascript' }));
-    navigator.serviceWorker.register(url).catch(() => {});
-  } catch(_) {}
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+/* ── Offline indicator ── */
+function updateOnlineStatus() {
+  document.getElementById('offline-pill').style.display = navigator.onLine ? 'none' : '';
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
 
 /* =================================================================
    INIT
