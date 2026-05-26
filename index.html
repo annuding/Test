@@ -297,6 +297,69 @@
     .var-wp   { font-size: 13px; color: var(--text-sec); margin-bottom: 8px; }
     .var-wp::before { content: '↪ '; }
     .es-desc  { font-size: 15px; line-height: 1.6; color: var(--text-sec); margin-bottom: 6px; }
+
+    /* ── CHECKLISTE EDIT-MODUS ── */
+    .cl-header-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .cl-edit-btn {
+      background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.4);
+      color: #fff; border-radius: 8px; padding: 5px 13px;
+      font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+      transition: background .15s;
+    }
+    .cl-edit-btn:active { background: rgba(255,255,255,.32); }
+    .cl-cat-edit-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    }
+    .cl-cat-input {
+      flex: 1; font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--text-sec);
+      background: transparent; border: none; border-bottom: 1.5px dashed var(--border);
+      padding: 2px 0; font-family: inherit;
+    }
+    .cl-cat-input:focus { outline: none; border-bottom-color: var(--primary); color: var(--text); }
+    .cl-del-cat {
+      background: transparent; border: none; color: var(--text-sec);
+      font-size: 17px; cursor: pointer; padding: 4px 6px; flex-shrink: 0; line-height: 1;
+    }
+    .cl-item-edit {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 4px; border-bottom: 1px solid var(--border); min-height: 46px;
+    }
+    .cl-item-input {
+      flex: 1; font-size: 15px; background: transparent;
+      border: none; border-bottom: 1px dashed transparent;
+      color: var(--text); font-family: inherit; padding: 2px 0;
+    }
+    .cl-item-input:focus { outline: none; border-bottom-color: var(--primary); }
+    .cl-del-item {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: var(--accent); color: #fff; border: none; border-radius: 6px;
+      font-size: 18px; font-weight: 300; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .cl-add-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 4px 4px;
+    }
+    .cl-add-input {
+      flex: 1; font-size: 15px; padding: 9px 11px;
+      border: 1.5px dashed var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); font-family: inherit;
+    }
+    .cl-add-input:focus { outline: none; border-color: var(--primary); border-style: solid; }
+    .cl-add-btn {
+      background: var(--primary); color: #fff; border: none;
+      border-radius: 8px; padding: 9px 13px; font-size: 14px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .cl-add-cat-wrap { padding: 8px 14px 8px; }
+    .reset-default-btn {
+      width: 100%; padding: 11px; border-radius: 8px;
+      border: 1px solid var(--accent); background: transparent;
+      color: var(--accent); font-size: 13px; cursor: pointer; margin-bottom: 8px;
+    }
+    .reset-default-btn:active { background: rgba(196,69,54,.08); }
   </style>
 </head>
 <body>
@@ -323,7 +386,10 @@
   <!-- ── TAB: CHECKLISTE ── -->
   <div id="tab-checkliste" class="tab-panel">
     <div class="cl-header">
-      <div class="cl-title">Reise-Checkliste</div>
+      <div class="cl-header-row">
+        <div class="cl-title">Reise-Checkliste</div>
+        <button class="cl-edit-btn" id="cl-edit-btn" onclick="toggleEditMode()">Bearbeiten</button>
+      </div>
       <div class="progress-track">
         <div class="progress-fill" id="prog-fill" style="width:0%"></div>
       </div>
@@ -333,8 +399,9 @@
       </div>
     </div>
     <div id="cl-body"></div>
-    <div class="reset-row">
-      <button class="reset-btn" onclick="resetChecklist()">↺ &nbsp;Checkliste zurücksetzen</button>
+    <div class="reset-row" id="cl-reset-row">
+      <button class="reset-default-btn" id="cl-reset-default" style="display:none" onclick="resetToDefault()">↺ &nbsp;Auf Original-Vorlage zurücksetzen</button>
+      <button class="reset-btn" onclick="resetChecklist()">↺ &nbsp;Häkchen zurücksetzen</button>
     </div>
   </div>
 
@@ -543,6 +610,7 @@ const CHECKLIST = [
    ================================================================= */
 let leafletMap = null;
 let activeSheetId = null;
+let clEditMode = false;
 
 /* =================================================================
    NAVIGATION
@@ -718,15 +786,38 @@ function e2(s) {
 }
 
 /* =================================================================
-   CHECKLIST
+   CHECKLIST  –  Data helpers
    ================================================================= */
+function getChecklist() {
+  try {
+    const s = localStorage.getItem('checklist_custom');
+    return s ? JSON.parse(s) : CHECKLIST.map(c => ({ cat: c.cat, items: [...c.items] }));
+  } catch(_) {
+    return CHECKLIST.map(c => ({ cat: c.cat, items: [...c.items] }));
+  }
+}
+function saveChecklistData(data) {
+  localStorage.setItem('checklist_custom', JSON.stringify(data));
+}
+function clearAllChecks(data) {
+  data.forEach((cat, ci) => cat.items.forEach((_, ii) => localStorage.removeItem(`ck_${ci}_${ii}`)));
+}
+
+/* ── Render dispatcher ── */
 function renderChecklist() {
-  document.getElementById('cl-body').innerHTML = CHECKLIST.map((cat, ci) =>
+  clEditMode ? renderCLEdit() : renderCLView();
+  refreshProgress();
+}
+
+/* ── View mode ── */
+function renderCLView() {
+  const data = getChecklist();
+  document.getElementById('cl-body').innerHTML = data.map((cat, ci) =>
     `<div class="cl-cat">
       <div class="cl-cat-title">${cat.cat}</div>
       ${cat.items.map((item, ii) => {
         const key = `ck_${ci}_${ii}`;
-        const on = localStorage.getItem(key) === '1';
+        const on  = localStorage.getItem(key) === '1';
         return `<div class="cl-item" onclick="toggleCheck('${key}',this)">
           <div class="cl-box ${on?'on':''}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -736,9 +827,80 @@ function renderChecklist() {
       }).join('')}
     </div>`
   ).join('');
-  refreshProgress();
 }
 
+/* ── Edit mode ── */
+function renderCLEdit() {
+  const data = getChecklist();
+  document.getElementById('cl-body').innerHTML = data.map((cat, ci) =>
+    `<div class="cl-cat">
+      <div class="cl-cat-edit-row">
+        <input class="cl-cat-input" value="${e2(cat.cat)}"
+          onchange="clEditCatTitle(${ci},this.value)" placeholder="Kategorie-Name">
+        <button class="cl-del-cat" onclick="clDeleteCat(${ci})" title="Kategorie löschen">🗑</button>
+      </div>
+      ${cat.items.map((item, ii) =>
+        `<div class="cl-item-edit">
+          <input class="cl-item-input" value="${e2(item)}"
+            onchange="clEditItem(${ci},${ii},this.value)" placeholder="Punkt …">
+          <button class="cl-del-item" onclick="clDeleteItem(${ci},${ii})">×</button>
+        </div>`
+      ).join('')}
+      <div class="cl-add-row">
+        <input class="cl-add-input" id="cl-add-${ci}" placeholder="Neuer Punkt …"
+          onkeydown="if(event.key==='Enter')clAddItem(${ci})">
+        <button class="cl-add-btn" onclick="clAddItem(${ci})">＋</button>
+      </div>
+    </div>`
+  ).join('') +
+  `<div class="cl-add-cat-wrap">
+    <div class="cl-add-row">
+      <input class="cl-add-input" id="cl-add-cat" placeholder="Neue Kategorie …"
+        onkeydown="if(event.key==='Enter')clAddCat()">
+      <button class="cl-add-btn" onclick="clAddCat()">＋ Kategorie</button>
+    </div>
+  </div>`;
+}
+
+/* ── Toggle edit mode ── */
+function toggleEditMode() {
+  clEditMode = !clEditMode;
+  document.getElementById('cl-edit-btn').textContent = clEditMode ? 'Fertig' : 'Bearbeiten';
+  document.getElementById('cl-reset-default').style.display = clEditMode ? '' : 'none';
+  renderChecklist();
+}
+
+/* ── Edit actions ── */
+function clEditCatTitle(ci, val) {
+  const d = getChecklist(); d[ci].cat = val; saveChecklistData(d);
+}
+function clEditItem(ci, ii, val) {
+  const d = getChecklist(); d[ci].items[ii] = val; saveChecklistData(d);
+}
+function clDeleteItem(ci, ii) {
+  const d = getChecklist(); d[ci].items.splice(ii, 1); saveChecklistData(d); renderChecklist();
+}
+function clDeleteCat(ci) {
+  const d = getChecklist();
+  if (!confirm(`Kategorie „${d[ci].cat}" wirklich löschen?`)) return;
+  d.splice(ci, 1); saveChecklistData(d); renderChecklist();
+}
+function clAddItem(ci) {
+  const inp = document.getElementById('cl-add-' + ci);
+  const val = inp.value.trim(); if (!val) return;
+  const d = getChecklist(); d[ci].items.push(val); saveChecklistData(d);
+  renderChecklist();
+  setTimeout(() => { const el = document.getElementById('cl-add-' + ci); if (el) el.focus(); }, 30);
+}
+function clAddCat() {
+  const inp = document.getElementById('cl-add-cat');
+  const val = inp.value.trim(); if (!val) return;
+  const d = getChecklist(); d.push({ cat: val, items: [] }); saveChecklistData(d);
+  renderChecklist();
+  setTimeout(() => { const el = document.getElementById('cl-add-cat'); if (el) el.focus(); }, 30);
+}
+
+/* ── Check toggle ── */
 function toggleCheck(key, row) {
   const box   = row.querySelector('.cl-box');
   const label = row.querySelector('.cl-label');
@@ -751,8 +913,9 @@ function toggleCheck(key, row) {
 }
 
 function refreshProgress() {
+  const data = getChecklist();
   let total = 0, done = 0;
-  CHECKLIST.forEach((cat, ci) =>
+  data.forEach((cat, ci) =>
     cat.items.forEach((_, ii) => { total++; if (localStorage.getItem(`ck_${ci}_${ii}`) === '1') done++; })
   );
   const pct = total ? Math.round(done / total * 100) : 0;
@@ -762,8 +925,14 @@ function refreshProgress() {
 }
 
 function resetChecklist() {
-  if (!confirm('Checkliste wirklich zurücksetzen?')) return;
-  CHECKLIST.forEach((cat, ci) => cat.items.forEach((_, ii) => localStorage.removeItem(`ck_${ci}_${ii}`)));
+  if (!confirm('Alle Häkchen zurücksetzen?')) return;
+  clearAllChecks(getChecklist());
+  renderChecklist();
+}
+function resetToDefault() {
+  if (!confirm('Checkliste auf Original-Vorlage zurücksetzen?\nAlle eigenen Änderungen gehen verloren.')) return;
+  clearAllChecks(getChecklist());
+  localStorage.removeItem('checklist_custom');
   renderChecklist();
 }
 
