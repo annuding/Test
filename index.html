@@ -280,6 +280,23 @@
     /* ── EMPTY/UTIL ── */
     .mt-12 { margin-top: 12px; }
     .mt-16 { margin-top: 16px; }
+
+    /* ── ETAPPE: VARIANTEN-LISTE (Kachel) ── */
+    .ev-list { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; }
+    .ev-row  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ev-lbl  { font-size: 12px; font-weight: 700; color: var(--primary); min-width: 62px; flex-shrink: 0; }
+
+    /* ── VARIANTE CARD (Sheet) ── */
+    .var-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+    }
+    .var-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .var-lbl  { font-size: 14px; font-weight: 700; color: var(--primary); }
+    .var-hint { font-size: 13px; color: var(--text-sec); line-height: 1.45; margin-bottom: 6px; }
+    .var-wp   { font-size: 13px; color: var(--text-sec); margin-bottom: 8px; }
+    .var-wp::before { content: '↪ '; }
+    .es-desc  { font-size: 15px; line-height: 1.6; color: var(--text-sec); margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -377,27 +394,76 @@
    DATA  ←  hier Daten ersetzen
    ================================================================= */
 const CAMPS = [
-  { id:1, name:"Camping Muster 1", lat:47.8095, lon:13.0550, tel:"+43 662 123456", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:2, name:"Camping Muster 2", lat:47.4979, lon:19.0402, tel:"+36 1 9876543",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:3, name:"Camping Muster 3", lat:48.2082, lon:16.3738, tel:"+43 1 555666",   desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:4, name:"Camping Muster 4", lat:47.0707, lon:15.4395, tel:"+43 316 789012", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:5, name:"Camping Muster 5", lat:46.6167, lon:14.3000, tel:"+43 463 345678", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:6, name:"Camping Muster 6", lat:47.2692, lon:11.4041, tel:"+43 512 901234", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:7, name:"Camping Muster 7", lat:46.9480, lon: 7.4474, tel:"+41 31 567890",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
-  { id:8, name:"Camping Muster 8", lat:47.3769, lon: 8.5417, tel:"+41 44 234567",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:1, name:"Camper Stop Dobrunje",      lat:46.03153,   lon:14.604505,  tel:"+386 1 542 95 77",  desc:"Etappe 1 Übernachtung bei Ljubljana. Restaurant nebenan: bei Essen >25€ ist die Übernachtung quasi inklusive. Bus 13 vor dem Tor in Ljubljanas Altstadt." },
+  { id:2, name:"Camp Stine (Paklenica)",    lat:44.3227018, lon:15.3904969, tel:"+385 91 594 6181",  desc:"Hauptbasis für 5-6 Nächte. Klettern Paklenica + Seekajak Velebitkanal. Nur ~15 Plätze – vorab per WhatsApp reservieren!" },
+  { id:3, name:"AdriaSol Camping Novigrad", lat:44.1901791, lon:15.5474252, tel:"+43 664 1184877",   desc:"Seekajak Novigradsko/Karinsko More + Klettern Modrič + Zrmanja Tagestour ab Muškovci." },
+  { id:4, name:"Camping Kanić (Pag)",       lat:44.5979228, lon:14.8345621, tel:"+385 91 618 1522",  desc:"Familienplatz mit eigener Bucht. Seekajak nach Maun/Škrda. Mitte September meist problemlos verfügbar." },
+  { id:5, name:"Camp Vransko Lake Crkvine", lat:43.9304765, lon:15.5096459, tel:"+385 23 251 726",   desc:"Größter Süßwassersee Kroatiens, Vogelreservat. Kajakverleih am Platz. Bestes Paddelrevier am Südwestufer." },
+  { id:6, name:"Camping Plitvice",          lat:44.9339465, lon:15.6301712, tel:"+385 53 652 484",   desc:"Shuttle zum NP, am Folgetag früh in den Park über Eingang 2 (vor 9 Uhr). Im Park kein Paddeln erlaubt." },
+  { id:7, name:"Camp Bohinj (Ukanc)",       lat:46.2789271, lon:13.8377406, tel:"+386 71 211 511",   desc:"Letzte Nacht am Bohinj-See, Triglav-NP. Kajakverleih am Platz, Camp liegt direkt am Westufer." },
+  { id:8, name:"Bregenz (Start/Ziel)",      lat:47.5031,    lon:9.7471,     tel:"",                  desc:"Startpunkt und Ziel der Rundreise." },
 ];
 
 const ETAPPEN = [
-  { nr:1,  titel:"Anreise & Startcamp",      von:"Heimat",       nach:"Camp 1",        strecke:"80 km",  zeit:"1,5 h",  stops:["Tankstelle Autobahn","Supermarkt"], destLat:47.8095, destLon:13.0550 },
-  { nr:2,  titel:"Weiterfahrt Tag 2",        von:"Camp 1",       nach:"Camp 2",        strecke:"280 km", zeit:"3 h",    stops:["Rastplatz","Grenzübergang"],        destLat:47.4979, destLon:19.0402 },
-  { nr:3,  titel:"Weiterfahrt Tag 3",        von:"Camp 2",       nach:"Camp 3",        strecke:"230 km", zeit:"2,5 h",  stops:["Stadtbesichtigung"],                destLat:48.2082, destLon:16.3738 },
-  { nr:4,  titel:"Weiterfahrt Tag 4",        von:"Camp 3",       nach:"Camp 4",        strecke:"190 km", zeit:"2 h",    stops:["Aussichtspunkt","Picknick"],         destLat:47.0707, destLon:15.4395 },
-  { nr:5,  titel:"Weiterfahrt Tag 5",        von:"Camp 4",       nach:"Camp 5",        strecke:"150 km", zeit:"1,5 h",  stops:["Bäckerei","See-Pause"],             destLat:46.6167, destLon:14.3000 },
-  { nr:6,  titel:"Weiterfahrt Tag 6",        von:"Camp 5",       nach:"Camp 6",        strecke:"320 km", zeit:"3,5 h",  stops:["Tunnel","Alpenpass"],               destLat:47.2692, destLon:11.4041 },
-  { nr:7,  titel:"Weiterfahrt Tag 7",        von:"Camp 6",       nach:"Camp 7",        strecke:"380 km", zeit:"4 h",    stops:["Grenzübergang","Stadtkern"],        destLat:46.9480, destLon: 7.4474 },
-  { nr:8,  titel:"Weiterfahrt Tag 8",        von:"Camp 7",       nach:"Camp 8",        strecke:"120 km", zeit:"1,5 h",  stops:["See-Panorama","Marktstand"],        destLat:47.3769, destLon: 8.5417 },
-  { nr:9,  titel:"Rückreise Etappe 1",       von:"Camp 8",       nach:"Zwischenstop",  strecke:"250 km", zeit:"2,5 h",  stops:["Raststätte","Grenzübergang"],       destLat:48.3974, destLon: 9.9934 },
-  { nr:10, titel:"Rückreise Etappe 2",       von:"Zwischenstop", nach:"Heimat",        strecke:"300 km", zeit:"3 h",    stops:["Raststätte","Tankstelle"],          destLat:48.1351, destLon:11.5820 },
+  { nr:1, titel:"Bregenz → Dobrunje", von:"Bregenz", nach:"Camper Stop Dobrunje",
+    origin:{lat:47.5031,lon:9.7471}, destination:{lat:46.03153,lon:14.604505},
+    beschreibung:"Anreisetag. A14 → Arlbergschnellstraße → A12 Inntal → A10 Tauern → A11 Karawanken → A2/A1 Slowenien. Vignetten AT+SI vor Grenze lösen.",
+    varianten:[
+      { label:"Standard", strecke:"620 km", zeit:"6,5 h", hinweis:"Überwiegend Autobahn", waypoints:[] }
+    ]
+  },
+  { nr:2, titel:"Dobrunje → Camp Stine", von:"Camper Stop Dobrunje", nach:"Camp Stine (Paklenica)",
+    origin:{lat:46.03153,lon:14.604505}, destination:{lat:44.3227018,lon:15.3904969},
+    beschreibung:"Slowenien-Durchquerung und Ankunft im Velebit. Letzte 40 km auf der DC8 Magistrala sind landschaftlicher Auftakt.",
+    varianten:[
+      { label:"Standard", strecke:"390 km", zeit:"4 h", hinweis:"Autobahn + letzte 40 km Scenic ab Maslenica", waypoints:[{lat:44.244,lon:15.527,name:"Maslenica"}] }
+    ]
+  },
+  { nr:3, titel:"Camp Stine → AdriaSol", von:"Camp Stine (Paklenica)", nach:"AdriaSol Camping Novigrad",
+    origin:{lat:44.3227018,lon:15.3904969}, destination:{lat:44.1901791,lon:15.5474252},
+    beschreibung:"Kurzer Umzug entlang der Bucht. Modrič-Klettergebiet 10 km vom Camp, Zrmanja-Canyon als Tagestour.",
+    varianten:[
+      { label:"Standard", strecke:"30 km", zeit:"40 min", hinweis:"DC8 + Nebenstraße", waypoints:[] }
+    ]
+  },
+  { nr:4, titel:"Novigrad → Pag", von:"AdriaSol Camping Novigrad", nach:"Camping Kanić (Pag)",
+    origin:{lat:44.1901791,lon:15.5474252}, destination:{lat:44.5979228,lon:14.8345621},
+    beschreibung:"Übergang zur Insel Pag. Bei früher Abfahrt Scenic empfohlen — die Velebit-Magistrala Senj-Karlobag ist eine der eindrucksvollsten Küstenstraßen Europas.",
+    varianten:[
+      { label:"Direkt",       strecke:"85 km",  zeit:"1,5 h", hinweis:"A1 + Pag-Brücke", waypoints:[] },
+      { label:"Scenic Fähre", strecke:"110 km", zeit:"3 h",   hinweis:"Velebit-Magistrala + Fähre Prizna→Žigljen (alle 1-2 h, Ticket an Bord)", waypoints:[{lat:44.531,lon:15.084,name:"Karlobag"},{lat:44.561,lon:14.972,name:"Prizna Fähre"}] }
+    ]
+  },
+  { nr:5, titel:"Pag → Vransko See", von:"Camping Kanić (Pag)", nach:"Camp Vransko Lake Crkvine",
+    origin:{lat:44.5979228,lon:14.8345621}, destination:{lat:43.9304765,lon:15.5096459},
+    beschreibung:"Optional Zwischenstopp Zadar Altstadt (Meeresorgel, 1-2 h). Crkvine hat eigenen Kajakverleih am Platz.",
+    varianten:[
+      { label:"Standard", strecke:"110 km", zeit:"2 h", hinweis:"A1 + Küstenstraße über Pakoštane", waypoints:[] }
+    ]
+  },
+  { nr:6, titel:"Vransko → Plitvice", von:"Camp Vransko Lake Crkvine", nach:"Camping Plitvice",
+    origin:{lat:43.9304765,lon:15.5096459}, destination:{lat:44.9339465,lon:15.6301712},
+    beschreibung:"Wechsel ins Hinterland. Im Park kein Paddeln erlaubt. Am Folgetag früh zum Eingang 2 (vor 9 Uhr).",
+    varianten:[
+      { label:"Schnell",        strecke:"110 km", zeit:"1,5 h", hinweis:"DC8 → A1 → Exit Gornja Ploča → DC1", waypoints:[] },
+      { label:"Scenic Krajina", strecke:"140 km", zeit:"2 h",   hinweis:"Velebit-Hinterland via Benkovac und Obrovac", waypoints:[{lat:44.198,lon:15.687,name:"Obrovac"}] }
+    ]
+  },
+  { nr:7, titel:"Plitvice → Bohinj", von:"Camping Plitvice", nach:"Camp Bohinj (Ukanc)",
+    origin:{lat:44.9339465,lon:15.6301712}, destination:{lat:46.2789271,lon:13.8377406},
+    beschreibung:"Kroatien-Maut am Ende der A1 bezahlen. Letzte 30 km folgen der Sava Bohinjka — landschaftlicher Auftakt zum Triglav-NP.",
+    varianten:[
+      { label:"Standard", strecke:"330 km", zeit:"4 h", hinweis:"A1/A2/A11 Karawanken + Bohinjska-Tal", waypoints:[] }
+    ]
+  },
+  { nr:8, titel:"Bohinj → Bregenz", von:"Camp Bohinj (Ukanc)", nach:"Bregenz",
+    origin:{lat:46.2789271,lon:13.8377406}, destination:{lat:47.5031,lon:9.7471},
+    beschreibung:"Rückreise. Variante Scenic als Reise-Abschluss empfohlen — eine der schönsten Alpenüberquerungen. Vršič-Pass im Oktober meist offen, Steigungen bis 10%.",
+    varianten:[
+      { label:"Effizient",   strecke:"510 km", zeit:"6 h",   hinweis:"Karawankentunnel-Maut SI→AT (~10€, höher >3,5m)", waypoints:[] },
+      { label:"Scenic Pässe",strecke:"520 km", zeit:"8,5 h", hinweis:"Vršič + Predel + Soča-Tal + Tarvisio", waypoints:[{lat:46.434,lon:13.751,name:"Vršič-Pass"},{lat:46.418,lon:13.575,name:"Predel-Pass"},{lat:46.6037,lon:13.846,name:"Tarvisio"}] }
+    ]
+  },
 ];
 
 const CHECKLIST = [
@@ -425,7 +491,7 @@ function switchTab(btn) {
   document.getElementById('tab-' + tab).classList.add('active');
   btn.classList.add('active');
 
-  const subs = { karte:'Alle Camps auf einen Blick', etappen:'10 Etappen', checkliste:'Reise-Checkliste' };
+  const subs = { karte:'Alle Camps auf einen Blick', etappen:'8 Etappen', checkliste:'Reise-Checkliste' };
   document.getElementById('header-sub').textContent = subs[tab] || '';
 
   if (tab === 'karte') {
@@ -486,53 +552,84 @@ function openCampSheet(camp) {
    ETAPPEN
    ================================================================= */
 function renderEtappen() {
-  document.getElementById('etappen-list').innerHTML = ETAPPEN.map(e => `
-    <div class="etappe-card" onclick="openEtappeSheet(${e.nr})">
-      <div class="etappe-nr-badge">${e.nr}</div>
-      <div class="etappe-info">
-        <div class="etappe-titel">${e.titel}</div>
-        <div class="etappe-route">${e.von} → ${e.nach}</div>
-        <div class="etappe-chips">
-          <span class="chip">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            ${e.zeit}
-          </span>
-          <span class="chip">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            ${e.strecke}
-          </span>
+  const icoTime  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const icoArrow = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+
+  document.getElementById('etappen-list').innerHTML = ETAPPEN.map(e => {
+    const singleStd = e.varianten.length === 1 && e.varianten[0].label === 'Standard';
+    const metaHtml = singleStd
+      ? `<div class="etappe-chips">
+           <span class="chip">${icoTime} ${e.varianten[0].zeit}</span>
+           <span class="chip">${icoArrow} ${e.varianten[0].strecke}</span>
+         </div>`
+      : `<div class="ev-list">
+           ${e.varianten.map(v => `
+             <div class="ev-row">
+               <span class="ev-lbl">${v.label}</span>
+               <span class="chip">${icoTime} ${v.zeit}</span>
+               <span class="chip">${icoArrow} ${v.strecke}</span>
+             </div>`).join('')}
+         </div>`;
+    return `
+      <div class="etappe-card" onclick="openEtappeSheet(${e.nr})">
+        <div class="etappe-nr-badge">${e.nr}</div>
+        <div class="etappe-info">
+          <div class="etappe-titel">${e.titel}</div>
+          <div class="etappe-route">${e.von} → ${e.nach}</div>
+          ${metaHtml}
         </div>
-      </div>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-sec);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
-    </div>
-  `).join('');
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-sec);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+      </div>`;
+  }).join('');
+}
+
+function buildNavUrl(e, v) {
+  let url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving';
+  url += `&origin=${e.origin.lat},${e.origin.lon}`;
+  url += `&destination=${e.destination.lat},${e.destination.lon}`;
+  if (v.waypoints && v.waypoints.length) {
+    url += '&waypoints=' + encodeURIComponent(v.waypoints.map(w => `${w.lat},${w.lon}`).join('|'));
+  }
+  return url;
 }
 
 function openEtappeSheet(nr) {
-  const e = ETAPPEN.find(x => x.nr === nr);
+  const e    = ETAPPEN.find(x => x.nr === nr);
   const note = localStorage.getItem('note_' + nr) || '';
-  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${e.destLat},${e.destLon}`;
+  const icoNav = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>`;
+
+  const variantenHtml = e.varianten.map(v => {
+    const url    = buildNavUrl(e, v);
+    const wpLine = v.waypoints && v.waypoints.length
+      ? `<div class="var-wp">${v.waypoints.map(w => w.name).join(' → ')}</div>`
+      : '';
+    return `
+      <div class="var-card">
+        <div class="var-head">
+          <span class="var-lbl">${v.label}</span>
+          <span class="chip">⏱ ${v.zeit}</span>
+          <span class="chip">📍 ${v.strecke}</span>
+        </div>
+        ${v.hinweis ? `<div class="var-hint">${v.hinweis}</div>` : ''}
+        ${wpLine}
+        <a class="btn btn-accent" href="${url}" target="_blank" rel="noopener">
+          ${icoNav} Navigation starten
+        </a>
+      </div>`;
+  }).join('');
 
   document.getElementById('es-content').innerHTML = `
     <div class="es-head">
       <div class="es-nr">Etappe ${e.nr} von ${ETAPPEN.length}</div>
       <div class="es-titel">${e.titel}</div>
       <div class="es-route">${e.von} &rarr; ${e.nach}</div>
-      <div class="es-chips">
-        <span class="es-chip">⏱ ${e.zeit}</span>
-        <span class="es-chip">📍 ${e.strecke}</span>
-      </div>
     </div>
     <div class="es-body">
-      <div class="section-label">Zwischenstops</div>
-      <ul class="stops-ul">
-        ${e.stops.map(s => `<li><span class="stop-dot"></span>${s}</li>`).join('')}
-      </ul>
+      <div class="section-label">Beschreibung</div>
+      <p class="es-desc">${e.beschreibung}</p>
 
-      <a class="btn btn-accent" href="${navUrl}" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-        Navigation starten
-      </a>
+      <div class="section-label" style="margin-top:18px">Routen-Varianten</div>
+      ${variantenHtml}
 
       <div class="mt-16">
         <div class="section-label">Meine Notizen</div>
