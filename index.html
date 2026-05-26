@@ -467,12 +467,75 @@ const ETAPPEN = [
 ];
 
 const CHECKLIST = [
-  { cat:"Fahrzeug", items:["Ölstand prüfen","Reifendruck prüfen","Kühlwasser prüfen","Wischwasser auffüllen","Reserverad vorhanden","Warndreieck & Warnweste","Verbandkasten aktuell","Pannenhilfe-App installiert"] },
-  { cat:"Camping-Equipment", items:["Markise / Vorzelt","Campingstühle & -tisch","Außenteppich","Strom-Anschlusskabel","Wasserkanister","Entsorgungsschlauch","Unterlegkeile","Steckdosen-Adapter"] },
-  { cat:"Küche", items:["Gaskocher & Kartuschen","Töpfe & Pfannen","Besteck & Geschirr","Schneidebrett & Messer","Öl, Salz, Pfeffer & Co.","Kaffeemaschine / -bereiter","Spülmittel & Schwamm","Müllbeutel"] },
-  { cat:"Schlafen & Hygiene", items:["Schlafsäcke / Bettzeug","Kopfkissen","Handtücher","Toilettenartikel komplett","Insektenspray","Sonnencreme","Erste-Hilfe-Set","WC-Papier (Reserve)"] },
-  { cat:"Elektronik & Navigation", items:["Ladekabel alle Geräte","Powerbank geladen","Navi & Halterung","Laptop / Tablet","Kamera & Speicherkarte","Bluetooth-Lautsprecher","12V-Mehrfachsteckdose","Mobile-Hotspot"] },
-  { cat:"Dokumente", items:["Reisepass / Personalausweis","Führerschein","Fahrzeugschein","Grüne Karte (Versicherung)","ADAC / Schutzbrief","Vignetten (AT, CH, HU …)","Krankenversicherungskarte","Hotel- / Camp-Buchungen"] },
+  { cat:"Vor Abreise — Reservierungen & Bürokratie", items:[
+    "Camp Stine vorab per WhatsApp reservieren (+385 91 594 6181)",
+    "AdriaSol, Vransko und Bohinj kurz anfragen (optional)",
+    "AT-Vignette digital lösen (2-Monats empfohlen)",
+    "SI-Vinjeta digital lösen (Wochen- oder Monats-)",
+    "Karawankentunnel-Maut prüfen (separat, ab 3,5m Höhe teurer)"
+  ]},
+  { cat:"Dokumente", items:[
+    "Reisepass / Personalausweis",
+    "Führerschein",
+    "Fahrzeugschein",
+    "Grüne Versicherungskarte",
+    "Kfz-Auslandsschutzbrief",
+    "EHIC (Europäische Krankenversicherungskarte)",
+    "Bargeld Euro (HR + SI nutzen Euro)"
+  ]},
+  { cat:"Camper-Technik", items:[
+    "CEE-Stromkabel + Adapter",
+    "Wasserkanister gefüllt",
+    "Gas-Kartuschen (Reserve)",
+    "Abwasserschlauch",
+    "Unterlegkeile",
+    "Reifendruck Camper geprüft"
+  ]},
+  { cat:"Seekajak-Equipment", items:[
+    "Kajaks aufladen + sichern",
+    "Schwimmwesten (pro Person)",
+    "Spritzdecken",
+    "Paddel + Reservepaddel",
+    "Bilgepumpe",
+    "Schwimmleinen / Wurfsack",
+    "Wasserdichte Packsäcke",
+    "Neoprenanzug / Paddeljacke"
+  ]},
+  { cat:"Kletter-Equipment", items:[
+    "Seil (60m+ für Paklenica)",
+    "Klettergurte",
+    "Helme",
+    "Express-Schlingen-Set",
+    "Sicherungsgerät + Karabiner",
+    "Kletterschuhe",
+    "Topo Paklenica + Modrič (Print oder offline)",
+    "Magnesia + Beutel"
+  ]},
+  { cat:"Wandern & Outdoor", items:[
+    "Wanderschuhe",
+    "Regenjacken",
+    "Tagesrucksäcke",
+    "Trinkflaschen",
+    "Stirnlampe + Reservebatterien",
+    "Sonnencreme + Sonnenhut",
+    "Insektenschutz"
+  ]},
+  { cat:"Navigation & Elektronik", items:[
+    "Offline-Karten heruntergeladen (Slowenien, Velebit, Pag, Plitvice, Bohinj)",
+    "Diese PWA auf Startbildschirm",
+    "Powerbank geladen",
+    "Ladekabel alle Geräte",
+    "12V-Mehrfachsteckdose",
+    "Kamera + Speicherkarte"
+  ]},
+  { cat:"Erste Hilfe & Hygiene", items:[
+    "Erste-Hilfe-Set komplett",
+    "Persönliche Medikamente",
+    "Pflaster + Blasenpflaster",
+    "Toilettenartikel",
+    "Mikrofaser-Handtücher",
+    "WC-Papier (Reserve)"
+  ]}
 ];
 
 /* =================================================================
@@ -543,8 +606,13 @@ function openCampSheet(camp) {
   document.getElementById('cs-desc').textContent = camp.desc;
   document.getElementById('cs-maps').href =
     `https://www.google.com/maps/search/?api=1&query=${camp.lat},${camp.lon}`;
-  document.getElementById('cs-call').href =
-    `tel:${camp.tel.replace(/[\s\-()]/g, '')}`;
+  const callBtn = document.getElementById('cs-call');
+  if (camp.tel) {
+    callBtn.href = `tel:${camp.tel.replace(/[\s\-()]/g, '')}`;
+    callBtn.style.display = '';
+  } else {
+    callBtn.style.display = 'none';
+  }
   openSheet('sheet-camp');
 }
 
