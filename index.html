@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Camperreise</title>
+  <meta name="theme-color" content="#1f4e5f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Camper">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    :root {
+      --primary: #1f4e5f;
+      --primary-dark: #163949;
+      --primary-light: #2a6880;
+      --accent: #c44536;
+      --accent-hover: #a8392c;
+      --bg: #f0f2f5;
+      --bg-card: #ffffff;
+      --text: #1a1a2e;
+      --text-sec: #6b7280;
+      --border: #e5e7eb;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+      --nav-h: 62px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --bg-card: #1e293b;
+        --text: #e2e8f0;
+        --text-sec: #94a3b8;
+        --border: #334155;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.35);
+        --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      height: 100%; width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg); color: var(--text);
+      overflow: hidden;
+    }
+    body { display: flex; flex-direction: column; }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--primary);
+      color: #fff;
+      padding: calc(10px + var(--safe-t)) 16px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow-md);
+      flex-shrink: 0;
+      z-index: 50;
+    }
+    .header h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-sub { font-size: 12px; opacity: .7; margin-top: 1px; }
+
+    /* ── CONTENT AREA ── */
+    .content { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+    .tab-panel { display: none; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .tab-panel.active { display: block; }
+
+    /* ── BOTTOM NAV ── */
+    .nav-bar {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: var(--safe-b);
+      flex-shrink: 0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,.08);
+      z-index: 50;
+    }
+    .nav-btn {
+      flex: 1; border: none; background: transparent; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 8px 4px; gap: 3px; min-height: var(--nav-h);
+      color: var(--text-sec); font-size: 11px; font-weight: 500;
+      transition: color .2s;
+      position: relative;
+    }
+    .nav-btn.active { color: var(--primary); }
+    .nav-btn.active::after {
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+      height: 3px; background: var(--primary); border-radius: 0 0 3px 3px;
+    }
+    .nav-btn svg { width: 24px; height: 24px; stroke-width: 1.8; }
+
+    /* ── MAP ── */
+    #map { height: 100%; width: 100%; }
+    .leaflet-container { font-family: inherit; }
+
+    /* ── CAMP MARKER ── */
+    .camp-pin {
+      width: 36px; height: 36px;
+      background: var(--primary);
+      border: 3px solid #fff;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 3px 8px rgba(0,0,0,.35);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    .camp-pin:hover { transform: rotate(-45deg) scale(1.15); }
+
+    /* ── ETAPPEN LIST ── */
+    .list-wrap { padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .etappe-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 14px;
+      border: 1px solid var(--border);
+      transition: transform .12s, box-shadow .12s;
+    }
+    .etappe-card:active { transform: scale(.98); box-shadow: none; }
+    .etappe-nr-badge {
+      background: var(--primary);
+      color: #fff;
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .etappe-info { flex: 1; min-width: 0; }
+    .etappe-titel { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .etappe-route { font-size: 13px; color: var(--text-sec); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .etappe-chips { display: flex; gap: 8px; margin-top: 6px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 99px; padding: 3px 8px;
+      font-size: 12px; color: var(--text-sec);
+    }
+    .chip svg { width: 12px; height: 12px; }
+
+    /* ── CHECKLIST ── */
+    .cl-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 18px 16px 20px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .cl-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+    .progress-track { background: rgba(255,255,255,.25); border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #fff; border-radius: 99px; transition: width .4s cubic-bezier(.4,0,.2,1); }
+    .progress-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; opacity: .85; }
+    .cl-cat { padding: 0 14px 8px; }
+    .cl-cat-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px;
+      color: var(--text-sec); padding: 16px 0 8px;
+      border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    }
+    .cl-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 4px; border-bottom: 1px solid var(--border);
+      cursor: pointer; min-height: 48px; user-select: none;
+    }
+    .cl-item:last-child { border-bottom: none; }
+    .cl-box {
+      width: 26px; height: 26px; flex-shrink: 0;
+      border: 2px solid var(--border); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .18s;
+    }
+    .cl-box.on { background: var(--primary); border-color: var(--primary); }
+    .cl-box svg { width: 14px; height: 14px; stroke: #fff; opacity: 0; transition: opacity .15s; }
+    .cl-box.on svg { opacity: 1; }
+    .cl-label { font-size: 15px; line-height: 1.3; transition: color .15s; }
+    .cl-label.done { text-decoration: line-through; color: var(--text-sec); }
+    .reset-row { padding: 12px 14px 24px; }
+    .reset-btn {
+      width: 100%; padding: 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-sec); font-size: 14px; cursor: pointer;
+    }
+    .reset-btn:active { background: var(--bg); }
+
+    /* ── OVERLAY & BOTTOMSHEET ── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 200;
+      backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    }
+    .overlay.on { display: block; }
+    .sheet {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg-card);
+      border-radius: 22px 22px 0 0;
+      z-index: 201;
+      transform: translateY(110%);
+      transition: transform .32s cubic-bezier(.32,1,.23,1);
+      max-height: 88vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(20px + var(--safe-b));
+      box-shadow: 0 -4px 30px rgba(0,0,0,.18);
+    }
+    .sheet.on { transform: translateY(0); }
+    .sheet-handle { width: 44px; height: 5px; background: var(--border); border-radius: 99px; margin: 12px auto 0; }
+
+    /* ── CAMP SHEET ── */
+    .cs-body { padding: 16px 20px 8px; }
+    .cs-tag { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--accent); margin-bottom: 4px; }
+    .cs-name { font-size: 22px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+    .cs-tel {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 14px; color: var(--text-sec); margin-bottom: 12px;
+    }
+    .cs-tel svg { width: 14px; height: 14px; }
+    .cs-desc { font-size: 15px; line-height: 1.6; color: var(--text-sec); margin-bottom: 20px; }
+    .cs-actions { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── ETAPPE SHEET ── */
+    .es-head {
+      background: var(--primary); color: #fff;
+      padding: 18px 20px 20px; position: relative;
+    }
+    .es-nr { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; opacity: .7; margin-bottom: 4px; }
+    .es-titel { font-size: 22px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
+    .es-route { font-size: 14px; opacity: .8; margin-bottom: 12px; }
+    .es-chips { display: flex; gap: 10px; }
+    .es-chip {
+      background: rgba(255,255,255,.18); border-radius: 99px;
+      padding: 4px 10px; font-size: 13px;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .es-body { padding: 18px 20px; }
+    .section-label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--text-sec); margin-bottom: 10px;
+    }
+    .stops-ul { list-style: none; margin-bottom: 20px; }
+    .stops-ul li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+      font-size: 15px;
+    }
+    .stops-ul li:last-child { border-bottom: none; }
+    .stop-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .note-ta {
+      width: 100%; min-height: 90px; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 15px; font-family: inherit;
+      background: var(--bg); color: var(--text);
+      resize: vertical; margin-top: 4px; margin-bottom: 16px;
+      transition: border-color .15s;
+    }
+    .note-ta:focus { outline: none; border-color: var(--primary); }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 15px 20px; border-radius: 13px;
+      font-size: 16px; font-weight: 600; border: none; cursor: pointer;
+      min-height: 54px; text-decoration: none;
+      transition: opacity .15s, transform .1s;
+      -webkit-appearance: none;
+    }
+    .btn:active { opacity: .82; transform: scale(.99); }
+    .btn svg { width: 20px; height: 20px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-ghost {
+      background: var(--bg); color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+
+    /* ── EMPTY/UTIL ── */
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="header h1">🚐 Camperreise</div>
+    <div class="header-sub" id="header-sub">Wähle eine Ansicht</div>
+  </div>
+</header>
+
+<main class="content">
+
+  <!-- ── TAB: KARTE ── -->
+  <div id="tab-karte" class="tab-panel active">
+    <div id="map"></div>
+  </div>
+
+  <!-- ── TAB: ETAPPEN ── -->
+  <div id="tab-etappen" class="tab-panel">
+    <div class="list-wrap" id="etappen-list"></div>
+  </div>
+
+  <!-- ── TAB: CHECKLISTE ── -->
+  <div id="tab-checkliste" class="tab-panel">
+    <div class="cl-header">
+      <div class="cl-title">Reise-Checkliste</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-fill" style="width:0%"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="prog-label">0 von 0 erledigt</span>
+        <span id="prog-pct">0 %</span>
+      </div>
+    </div>
+    <div id="cl-body"></div>
+    <div class="reset-row">
+      <button class="reset-btn" onclick="resetChecklist()">↺ &nbsp;Checkliste zurücksetzen</button>
+    </div>
+  </div>
+
+</main>
+
+<nav class="nav-bar">
+  <button class="nav-btn active" data-tab="karte" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+    Karte
+  </button>
+  <button class="nav-btn" data-tab="etappen" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+    Etappen
+  </button>
+  <button class="nav-btn" data-tab="checkliste" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Checkliste
+  </button>
+</nav>
+
+<!-- ── OVERLAY ── -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- ── CAMP SHEET ── -->
+<div class="sheet" id="sheet-camp">
+  <div class="sheet-handle"></div>
+  <div class="cs-body">
+    <div class="cs-tag">Campingplatz</div>
+    <div class="cs-name" id="cs-name"></div>
+    <div class="cs-tel" id="cs-tel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+      <span id="cs-tel-text"></span>
+    </div>
+    <div class="cs-desc" id="cs-desc"></div>
+    <div class="cs-actions">
+      <a class="btn btn-primary" id="cs-maps" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Auf Google Maps öffnen
+      </a>
+      <a class="btn btn-accent" id="cs-call" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+        Anrufen
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ── ETAPPE SHEET ── -->
+<div class="sheet" id="sheet-etappe">
+  <div class="sheet-handle"></div>
+  <div id="es-content"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+/* =================================================================
+   DATA  ←  hier Daten ersetzen
+   ================================================================= */
+const CAMPS = [
+  { id:1, name:"Camping Muster 1", lat:47.8095, lon:13.0550, tel:"+43 662 123456", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:2, name:"Camping Muster 2", lat:47.4979, lon:19.0402, tel:"+36 1 9876543",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:3, name:"Camping Muster 3", lat:48.2082, lon:16.3738, tel:"+43 1 555666",   desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:4, name:"Camping Muster 4", lat:47.0707, lon:15.4395, tel:"+43 316 789012", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:5, name:"Camping Muster 5", lat:46.6167, lon:14.3000, tel:"+43 463 345678", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:6, name:"Camping Muster 6", lat:47.2692, lon:11.4041, tel:"+43 512 901234", desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:7, name:"Camping Muster 7", lat:46.9480, lon: 7.4474, tel:"+41 31 567890",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+  { id:8, name:"Camping Muster 8", lat:47.3769, lon: 8.5417, tel:"+41 44 234567",  desc:"Beschreibung folgt – ersetze diese Daten mit deinen echten Camp-Infos." },
+];
+
+const ETAPPEN = [
+  { nr:1,  titel:"Anreise & Startcamp",      von:"Heimat",       nach:"Camp 1",        strecke:"80 km",  zeit:"1,5 h",  stops:["Tankstelle Autobahn","Supermarkt"], destLat:47.8095, destLon:13.0550 },
+  { nr:2,  titel:"Weiterfahrt Tag 2",        von:"Camp 1",       nach:"Camp 2",        strecke:"280 km", zeit:"3 h",    stops:["Rastplatz","Grenzübergang"],        destLat:47.4979, destLon:19.0402 },
+  { nr:3,  titel:"Weiterfahrt Tag 3",        von:"Camp 2",       nach:"Camp 3",        strecke:"230 km", zeit:"2,5 h",  stops:["Stadtbesichtigung"],                destLat:48.2082, destLon:16.3738 },
+  { nr:4,  titel:"Weiterfahrt Tag 4",        von:"Camp 3",       nach:"Camp 4",        strecke:"190 km", zeit:"2 h",    stops:["Aussichtspunkt","Picknick"],         destLat:47.0707, destLon:15.4395 },
+  { nr:5,  titel:"Weiterfahrt Tag 5",        von:"Camp 4",       nach:"Camp 5",        strecke:"150 km", zeit:"1,5 h",  stops:["Bäckerei","See-Pause"],             destLat:46.6167, destLon:14.3000 },
+  { nr:6,  titel:"Weiterfahrt Tag 6",        von:"Camp 5",       nach:"Camp 6",        strecke:"320 km", zeit:"3,5 h",  stops:["Tunnel","Alpenpass"],               destLat:47.2692, destLon:11.4041 },
+  { nr:7,  titel:"Weiterfahrt Tag 7",        von:"Camp 6",       nach:"Camp 7",        strecke:"380 km", zeit:"4 h",    stops:["Grenzübergang","Stadtkern"],        destLat:46.9480, destLon: 7.4474 },
+  { nr:8,  titel:"Weiterfahrt Tag 8",        von:"Camp 7",       nach:"Camp 8",        strecke:"120 km", zeit:"1,5 h",  stops:["See-Panorama","Marktstand"],        destLat:47.3769, destLon: 8.5417 },
+  { nr:9,  titel:"Rückreise Etappe 1",       von:"Camp 8",       nach:"Zwischenstop",  strecke:"250 km", zeit:"2,5 h",  stops:["Raststätte","Grenzübergang"],       destLat:48.3974, destLon: 9.9934 },
+  { nr:10, titel:"Rückreise Etappe 2",       von:"Zwischenstop", nach:"Heimat",        strecke:"300 km", zeit:"3 h",    stops:["Raststätte","Tankstelle"],          destLat:48.1351, destLon:11.5820 },
+];
+
+const CHECKLIST = [
+  { cat:"Fahrzeug", items:["Ölstand prüfen","Reifendruck prüfen","Kühlwasser prüfen","Wischwasser auffüllen","Reserverad vorhanden","Warndreieck & Warnweste","Verbandkasten aktuell","Pannenhilfe-App installiert"] },
+  { cat:"Camping-Equipment", items:["Markise / Vorzelt","Campingstühle & -tisch","Außenteppich","Strom-Anschlusskabel","Wasserkanister","Entsorgungsschlauch","Unterlegkeile","Steckdosen-Adapter"] },
+  { cat:"Küche", items:["Gaskocher & Kartuschen","Töpfe & Pfannen","Besteck & Geschirr","Schneidebrett & Messer","Öl, Salz, Pfeffer & Co.","Kaffeemaschine / -bereiter","Spülmittel & Schwamm","Müllbeutel"] },
+  { cat:"Schlafen & Hygiene", items:["Schlafsäcke / Bettzeug","Kopfkissen","Handtücher","Toilettenartikel komplett","Insektenspray","Sonnencreme","Erste-Hilfe-Set","WC-Papier (Reserve)"] },
+  { cat:"Elektronik & Navigation", items:["Ladekabel alle Geräte","Powerbank geladen","Navi & Halterung","Laptop / Tablet","Kamera & Speicherkarte","Bluetooth-Lautsprecher","12V-Mehrfachsteckdose","Mobile-Hotspot"] },
+  { cat:"Dokumente", items:["Reisepass / Personalausweis","Führerschein","Fahrzeugschein","Grüne Karte (Versicherung)","ADAC / Schutzbrief","Vignetten (AT, CH, HU …)","Krankenversicherungskarte","Hotel- / Camp-Buchungen"] },
+];
+
+/* =================================================================
+   STATE
+   ================================================================= */
+let leafletMap = null;
+let activeSheetId = null;
+
+/* =================================================================
+   NAVIGATION
+   ================================================================= */
+function switchTab(btn) {
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+
+  const subs = { karte:'Alle Camps auf einen Blick', etappen:'10 Etappen', checkliste:'Reise-Checkliste' };
+  document.getElementById('header-sub').textContent = subs[tab] || '';
+
+  if (tab === 'karte') {
+    if (!leafletMap) initMap();
+    else setTimeout(() => leafletMap.invalidateSize(), 50);
+  }
+}
+
+/* =================================================================
+   MAP
+   ================================================================= */
+function initMap() {
+  leafletMap = L.map('map', { zoomControl: true }).setView([47.5, 13.0], 6);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(leafletMap);
+
+  const bounds = [];
+
+  CAMPS.forEach((camp, i) => {
+    bounds.push([camp.lat, camp.lon]);
+
+    const icon = L.divIcon({
+      html: `<div class="camp-pin"></div>`,
+      className: '',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -38],
+    });
+
+    L.marker([camp.lat, camp.lon], { icon, title: camp.name })
+      .addTo(leafletMap)
+      .on('click', () => openCampSheet(camp));
+  });
+
+  if (bounds.length) {
+    leafletMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+  }
+}
+
+/* =================================================================
+   CAMP SHEET
+   ================================================================= */
+function openCampSheet(camp) {
+  document.getElementById('cs-name').textContent = camp.name;
+  document.getElementById('cs-tel-text').textContent = camp.tel;
+  document.getElementById('cs-desc').textContent = camp.desc;
+  document.getElementById('cs-maps').href =
+    `https://www.google.com/maps/search/?api=1&query=${camp.lat},${camp.lon}`;
+  document.getElementById('cs-call').href =
+    `tel:${camp.tel.replace(/[\s\-()]/g, '')}`;
+  openSheet('sheet-camp');
+}
+
+/* =================================================================
+   ETAPPEN
+   ================================================================= */
+function renderEtappen() {
+  document.getElementById('etappen-list').innerHTML = ETAPPEN.map(e => `
+    <div class="etappe-card" onclick="openEtappeSheet(${e.nr})">
+      <div class="etappe-nr-badge">${e.nr}</div>
+      <div class="etappe-info">
+        <div class="etappe-titel">${e.titel}</div>
+        <div class="etappe-route">${e.von} → ${e.nach}</div>
+        <div class="etappe-chips">
+          <span class="chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${e.zeit}
+          </span>
+          <span class="chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            ${e.strecke}
+          </span>
+        </div>
+      </div>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-sec);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+  `).join('');
+}
+
+function openEtappeSheet(nr) {
+  const e = ETAPPEN.find(x => x.nr === nr);
+  const note = localStorage.getItem('note_' + nr) || '';
+  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${e.destLat},${e.destLon}`;
+
+  document.getElementById('es-content').innerHTML = `
+    <div class="es-head">
+      <div class="es-nr">Etappe ${e.nr} von ${ETAPPEN.length}</div>
+      <div class="es-titel">${e.titel}</div>
+      <div class="es-route">${e.von} &rarr; ${e.nach}</div>
+      <div class="es-chips">
+        <span class="es-chip">⏱ ${e.zeit}</span>
+        <span class="es-chip">📍 ${e.strecke}</span>
+      </div>
+    </div>
+    <div class="es-body">
+      <div class="section-label">Zwischenstops</div>
+      <ul class="stops-ul">
+        ${e.stops.map(s => `<li><span class="stop-dot"></span>${s}</li>`).join('')}
+      </ul>
+
+      <a class="btn btn-accent" href="${navUrl}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Navigation starten
+      </a>
+
+      <div class="mt-16">
+        <div class="section-label">Meine Notizen</div>
+        <textarea class="note-ta" id="note-ta-${nr}" placeholder="Notizen zu dieser Etappe …"
+          oninput="saveNote(${nr})">${e2(note)}</textarea>
+      </div>
+    </div>
+  `;
+  openSheet('sheet-etappe');
+}
+
+function saveNote(nr) {
+  localStorage.setItem('note_' + nr, document.getElementById('note-ta-' + nr).value);
+}
+
+function e2(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* =================================================================
+   CHECKLIST
+   ================================================================= */
+function renderChecklist() {
+  document.getElementById('cl-body').innerHTML = CHECKLIST.map((cat, ci) =>
+    `<div class="cl-cat">
+      <div class="cl-cat-title">${cat.cat}</div>
+      ${cat.items.map((item, ii) => {
+        const key = `ck_${ci}_${ii}`;
+        const on = localStorage.getItem(key) === '1';
+        return `<div class="cl-item" onclick="toggleCheck('${key}',this)">
+          <div class="cl-box ${on?'on':''}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span class="cl-label ${on?'done':''}">${item}</span>
+        </div>`;
+      }).join('')}
+    </div>`
+  ).join('');
+  refreshProgress();
+}
+
+function toggleCheck(key, row) {
+  const box   = row.querySelector('.cl-box');
+  const label = row.querySelector('.cl-label');
+  const isOn  = box.classList.contains('on');
+  box.classList.toggle('on', !isOn);
+  label.classList.toggle('done', !isOn);
+  if (!isOn) localStorage.setItem(key, '1');
+  else       localStorage.removeItem(key);
+  refreshProgress();
+}
+
+function refreshProgress() {
+  let total = 0, done = 0;
+  CHECKLIST.forEach((cat, ci) =>
+    cat.items.forEach((_, ii) => { total++; if (localStorage.getItem(`ck_${ci}_${ii}`) === '1') done++; })
+  );
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `${done} von ${total} erledigt`;
+  document.getElementById('prog-pct').textContent = pct + ' %';
+}
+
+function resetChecklist() {
+  if (!confirm('Checkliste wirklich zurücksetzen?')) return;
+  CHECKLIST.forEach((cat, ci) => cat.items.forEach((_, ii) => localStorage.removeItem(`ck_${ci}_${ii}`)));
+  renderChecklist();
+}
+
+/* =================================================================
+   SHEET HELPERS
+   ================================================================= */
+function openSheet(id) {
+  closeSheet();
+  activeSheetId = id;
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById(id).classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSheet() {
+  if (!activeSheetId) return;
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById(activeSheetId).classList.remove('on');
+  activeSheetId = null;
+  document.body.style.overflow = '';
+}
+
+/* =================================================================
+   PWA  –  Manifest (inline data URI)
+   ================================================================= */
+(function injectManifest() {
+  const m = {
+    name: 'Camperreise',
+    short_name: 'Camper',
+    start_url: './',
+    display: 'standalone',
+    background_color: '#1f4e5f',
+    theme_color: '#1f4e5f',
+    icons: [{
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%231f4e5f'/%3E%3Ctext y='380' x='60' font-size='360'%3E%F0%9F%9A%90%3C/text%3E%3C/svg%3E",
+      sizes: 'any', type: 'image/svg+xml'
+    }]
+  };
+  const el = document.createElement('link');
+  el.rel = 'manifest';
+  el.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+  document.head.appendChild(el);
+})();
+
+/* =================================================================
+   SERVICE WORKER  (Blob-URL – best effort offline)
+   ================================================================= */
+if ('serviceWorker' in navigator) {
+  const sw = `
+const C = 'camper-v2';
+const PRE = [
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(C).then(c => c.addAll(PRE).catch(()=>{})));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks =>
+    Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))
+  ));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+      if (res && res.ok) {
+        const cl = res.clone();
+        caches.open(C).then(c => c.put(e.request, cl));
+      }
+      return res;
+    }).catch(() => caches.match(e.request)))
+  );
+});
+`;
+  try {
+    const url = URL.createObjectURL(new Blob([sw], { type: 'application/javascript' }));
+    navigator.serviceWorker.register(url).catch(() => {});
+  } catch(_) {}
+}
+
+/* =================================================================
+   INIT
+   ================================================================= */
+renderEtappen();
+renderChecklist();
+initMap();
+document.getElementById('header-sub').textContent = 'Alle Camps auf einen Blick';
+</script>
+</body>
+</html>
