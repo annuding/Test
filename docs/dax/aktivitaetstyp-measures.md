@@ -23,18 +23,51 @@ sinngemäß auch direkt auf `fact_timepositions[Aktivitätstyp]` — dann
 `REMOVEFILTERS( fact_timepositions[Aktivitätstyp] )` ersetzen. Die Dimension
 lohnt sich aber, sobald ihr Gruppen/Sortierung/Übersetzungen pflegen wollt.
 
+Zusätzlich gibt es in `fact_timepositions` die Spalte `IstAktuelleZeile`
+("Ja"/"Nein"), die aktive von historischen Buchungszeilen trennt. Diese Regel
+gilt **ausnahmslos für jedes Measure** im System — sie wird deshalb nicht in
+jedem einzelnen Measure wiederholt, sondern einmalig an der Wurzel
+(Basis-Measures) verankert. Siehe Abschnitt 2.
+
 ## 2. Ebene 0 — Basis-Measures (technisch, Display Folder "00 Basis")
+
+Der `IstAktuelleZeile`-Filter gehört hier hinein, nicht in die einzelnen
+Aufbau-Measures — aus zwei Gründen: Erstens muss er wirklich überall gelten,
+und "überall manuell wiederholen" ist genau die Art Fehlerquelle, die bei
+20+ Measures irgendwann eine Kopie vergisst. Zweitens ersetzt ein
+CALCULATE-Filterargument auf einer Spalte jeden vorher bestehenden Filter
+auf exakt dieser Spalte (statt ihn nur einzuschränken) — d. h. selbst wenn
+irgendwo im Bericht (versehentlich oder durch einen Drillthrough) nach
+`IstAktuelleZeile = "Nein"` gefiltert würde, gewinnt hier trotzdem "Ja". Der
+Filter ist damit nicht nur Standard, sondern auch gegen Fehlbedienung robust.
 
 ```dax
 Menge Basis =
-SUM ( fact_timepositions[Menge] )
+CALCULATE (
+    SUM ( fact_timepositions[Menge] ),
+    fact_timepositions[IstAktuelleZeile] = "Ja"
+)
 
 Anzahl Buchungen =
-COUNTROWS ( fact_timepositions )
+CALCULATE (
+    COUNTROWS ( fact_timepositions ),
+    fact_timepositions[IstAktuelleZeile] = "Ja"
+)
 ```
 
-Alle anderen Measures bauen auf `[Menge Basis]` auf — nie direkt `SUM(...)`
-wiederholen, sonst driftet die Logik bei späteren Anpassungen auseinander.
+Alle anderen Measures bauen auf `[Menge Basis]` bzw. `[Anzahl Buchungen]`
+auf — nie direkt `SUM(...)` oder `COUNTROWS(...)` auf `fact_timepositions`
+wiederholen. Dadurch erbt jedes nachgelagerte Measure (flexibel, fix, KPI)
+automatisch den `IstAktuelleZeile = "Ja"`-Filter, ohne dass er dort erneut
+angegeben werden muss — auch die fixen Measures in Abschnitt 5, obwohl sie
+`REMOVEFILTERS( dim_Aktivitätstyp )` verwenden: Das setzt nur Filter auf der
+Aktivitätstyp-Dimension zurück, nicht auf der `IstAktuelleZeile`-Spalte der
+Faktentabelle.
+
+**Faustregel für jedes neue Measure:** Wenn es Zeilen aus `fact_timepositions`
+aggregiert, muss es entweder auf `[Menge Basis]` / `[Anzahl Buchungen]`
+aufbauen, oder — falls das aus triftigem Grund nicht geht — den
+`IstAktuelleZeile = "Ja"`-Filter explizit selbst mitführen.
 
 ## 3. Konsistenz-Guard — verhindert unerlaubtes Summieren
 
@@ -177,3 +210,9 @@ ist und welches nicht — ohne dass der Anwender den DAX-Code lesen muss.
 
 Diese Konvention konsequent durchhalten, dann bleibt das System auch bei
 20+ Measures und mehreren Aktivitätstyp-Kombinationen nachvollziehbar.
+
+**Wichtigste Regel dabei:** Jedes neue Measure muss auf `[Menge Basis]` /
+`[Anzahl Buchungen]` aufbauen (Abschnitt 2) statt erneut direkt auf
+`fact_timepositions` zu aggregieren — sonst geht der
+`IstAktuelleZeile = "Ja"`-Filter für dieses eine Measure verloren, ohne dass
+das im Bericht auffällt.
